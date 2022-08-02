@@ -63,7 +63,10 @@ class CatApiClient(ApiClient, ABC):
         # in case api-key header is not provided, this param does not take action
         params = {'mime_types': 'png,jpg'}
 
-        # TODO: fix first skip
+        # TODO:
+        #  * fix first skip
+        #  * try-catch logic decorator
+        #  * implement batch logic (api-keys allow 25 images at a time)
         self.last_call = datetime.now() - self.api_call_interval * 10
         while True:
             try:
