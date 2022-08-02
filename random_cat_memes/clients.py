@@ -1,15 +1,14 @@
+import functools
 import logging
 from abc import ABC
 from datetime import datetime, timedelta
 from io import BytesIO
 from time import sleep
-from typing import ClassVar, Optional
+from typing import Callable, ClassVar, Optional, Union
 
 import requests
 from PIL import Image
 from pydantic import BaseModel
-
-from .util import response_handler
 
 logging.basicConfig(
     level="INFO",
@@ -24,6 +23,20 @@ class ApiClient(BaseModel):
     api_url: str
     api_key: Optional[str]
     last_call: Optional[datetime]
+
+    @staticmethod
+    def response_handler(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Optional[Union[list, dict]]:
+            response = func(*args, **kwargs)
+            if response.status_code < 400:
+                if response.text:
+                    return response.json()
+            else:
+                raise Exception(f"Response status: {response.status_code}, message: {None}")
+            return None
+
+        return wrapper
 
     @staticmethod
     @response_handler
@@ -43,7 +56,7 @@ class ApiClient(BaseModel):
         return response
 
 
-class CatApiClient(ApiClient, ABC):
+class CatImageGenerator(ApiClient, ABC):
     api_url: str = 'https://api.thecatapi.com/v1'
     search_image_endpoint: str = '/images/search?format=json'
 
@@ -66,6 +79,7 @@ class CatApiClient(ApiClient, ABC):
         # TODO:
         #  * fix first skip
         #  * try-catch logic decorator
+        #  * throttler decorator
         #  * implement batch logic (api-keys allow 25 images at a time)
         self.last_call = datetime.now() - self.api_call_interval * 10
         while True:

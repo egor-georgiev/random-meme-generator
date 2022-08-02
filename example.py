@@ -2,7 +2,7 @@ import os
 import shutil
 import sqlite3
 
-from random_cat_memes.clients import CatApiClient
+from random_cat_memes.clients import CatImageGenerator
 from random_cat_memes.memegenerator import MemeGenerator
 
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     cleanup()
 
     n = 0
-    cat_api = CatApiClient()
+    cat_api = CatImageGenerator()
     for image in cat_api.get_cat_images():  # noqa
         if n > 500:
             break
