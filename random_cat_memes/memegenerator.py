@@ -8,6 +8,7 @@ from pydantic import BaseModel, validator
 
 # TODO
 #   * centralized settings
+#   * throw exception if text is too long and unreadable
 
 TextPosition = namedtuple('TextPosition', ['x', 'y'])
 
@@ -100,10 +101,11 @@ class MemeGenerator(BaseModel):
     def _draw_fg_text(self, text: str, text_position: TextPosition) -> None:
         self._draw_text(text_position, text, color=self.fg_color)
 
-    def generate_meme(self) -> None:
+    def generate_meme(self) -> Image:
         for text, position in zip(
-                (self.top_text, self.bottom_text), (self.top_text_position, self.bottom_text_position)
+                (self.top_text, self.bottom_text),
+                (self.top_text_position, self.bottom_text_position)
         ):
             self._draw_bg_text(text=text, text_position=position)
             self._draw_fg_text(text=text, text_position=position)
-        # TODO: return
+        return self.image

@@ -38,6 +38,6 @@ if __name__ == '__main__':
             image=image,
             font_path='fonts/impact.ttf',
         )
-        memegen.generate_meme()
-        memegen.image.save(f'out/test{n}.png')
+        image = memegen.generate_meme()
+        image.save(f'out/test{n}.png')
         n += 1
