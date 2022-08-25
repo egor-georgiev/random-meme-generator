@@ -1,10 +1,10 @@
-import functools
 import logging
 from abc import ABC
 from datetime import datetime, timedelta
 from io import BytesIO
-from time import sleep
-from typing import Callable, ClassVar, Optional, Union
+from typing import ClassVar, Optional
+
+from .util import response_handler, request_throttler
 
 import requests
 from PIL import Image
@@ -22,21 +22,8 @@ class ApiClient(BaseModel):
 
     api_url: str
     api_key: Optional[str]
-    last_call: Optional[datetime]
-
-    @staticmethod
-    def response_handler(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Optional[Union[list, dict]]:
-            response = func(*args, **kwargs)
-            if response.status_code < 400:
-                if response.text:
-                    return response.json()
-            else:
-                raise Exception(f"Response status: {response.status_code}, message: {None}")
-            return None
-
-        return wrapper
+    last_call: Optional[datetime] = datetime.now() - api_call_interval * 10
+    headers: dict[str, str] = {'Content-Type': 'application/json'}
 
     @staticmethod
     @response_handler
@@ -57,6 +44,7 @@ class ApiClient(BaseModel):
 
 
 class CatImageGenerator(ApiClient, ABC):
+    # TODO: re-implement header / param functionality
     api_url: str = 'https://api.thecatapi.com/v1'
     search_image_endpoint: str = '/images/search?format=json'
 
@@ -68,38 +56,28 @@ class CatImageGenerator(ApiClient, ABC):
         )
         return Image.open(BytesIO(response.content))
 
-    def get_cat_images(self) -> Image.Image:
-        headers = {'Content-Type': 'application/json'}
-        if self.api_key is not None:
-            headers['x-api-key'] = self.api_key
-        # this is to exclude gifs, because they provide most peculiar results
-        # in case api-key header is not provided, this param does not take action
-        params = {'mime_types': 'png,jpg'}
+    @request_throttler
+    def _get_image(self):
+        image_url = super()._get(
+            url=f"{self.api_url}{self.search_image_endpoint}",
+            headers=self.headers,
+        )[0]['url']
+        return self._get_image_bytes(url=image_url)
+
+    @property
+    def cat_images(self) -> Image.Image:
 
         # TODO:
         #  * fix first skip
         #  * try-catch logic decorator
         #  * throttler decorator
         #  * implement batch logic (api-keys allow 25 images at a time)
-        self.last_call = datetime.now() - self.api_call_interval * 10
         while True:
+
             try:
-                if (self.last_call + self.api_call_interval) < datetime.now():
-                    logger.info(f"Skipping iteration on cat images generator.")
-                    pass
-                else:
-                    sleep(self.api_call_interval.total_seconds())
-
-                image_url = super()._get(
-                    url=f"{self.api_url}{self.search_image_endpoint}",
-                    headers=headers,
-                    params=params,
-                )[0]['url']
-                image = self._get_image_bytes(url=image_url)
-
-                self.last_call = datetime.now()
-
-                yield image
+                yield self._get_image()
             except Exception as e:  # TODO: figure out how to make less broad
                 logger.warning(f"Cat image request failed: {e}.")
                 continue
+
+            self.last_call = datetime.now()

@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     n = 0
     cat_api = CatImageGenerator()
-    for image in cat_api.get_cat_images():  # noqa
+    for image in cat_api.cat_images:  # noqa
         if n > 500:
             break
 
